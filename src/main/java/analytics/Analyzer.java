@@ -45,7 +45,7 @@ public class Analyzer {
                 pearson = new PearsonsCorrelation(input);
 //                correlationMatrix[g1.getIndex()][g2.getIndex()] = pearson.getCorrelationMatrix().getEntry(0, 1);
 //                pValuesMatrix[g1.getIndex()][g2.getIndex()] = pearson.getCorrelationPValues().getEntry(0, 1);
-                correlation = pearson.getCorrelationMatrix().getEntry(0, 1);
+                correlation = Math.abs(pearson.getCorrelationMatrix().getEntry(0, 1));
                 pValue = pearson.getCorrelationPValues().getEntry(0, 1);
 
                 if (correlation > 0.7 && pValue < 0.05) {
