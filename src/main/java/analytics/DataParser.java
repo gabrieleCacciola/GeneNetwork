@@ -1,13 +1,12 @@
-package HelloWorld;
+package analytics;
+
+import dao.Gene;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- * Created by marika on 08/10/16.
+ * Parses the GeneNetwork.csv and returns a Set<Gene>.
  */
 public class DataParser {
     /**
@@ -15,18 +14,22 @@ public class DataParser {
      */
     private String filePath;
 
-    private List<Patient> patients;
+    /**
+     * List of patients.
+     */
+    private Set<Gene> genes;
+
+    private int geneIndex = 0;
 
     /**
      * Parse the CSV file.
      */
     public void parse() {
+        genes = new HashSet<Gene>();
         BufferedReader br = null;
         String line = "";
         String cvsSplitBy = ",";
         int rowCounter = 1;
-
-        prefillPatients();
 
         try {
             br = new BufferedReader(new FileReader(filePath));
@@ -43,7 +46,7 @@ public class DataParser {
 
                 parsePatient(row);
 
-                System.out.println("Yet another read row: "+rowCounter+", GeneName =  "+row[0]);
+//                System.out.println("Yet another read row: "+rowCounter+", GeneName =  "+row[0]);
 
                 rowCounter++;
             }
@@ -59,46 +62,34 @@ public class DataParser {
                     e.printStackTrace();
                 }
             }
+
+            System.out.println("#Geni = "+genes.size());
         }
     }
 
     private void parsePatient(String[] row) {
-        String geneName = row[0];
+        Gene gene = new Gene();
+        gene.setName(row[0]);
+        gene.setIndex(geneIndex);
+        int numPatients = (row.length - 2) / 2;
+        gene.setControls(new double[numPatients]);
+        gene.setPsoriatics(new double[numPatients]);
         double sum = 0;
         for (int i = 2; i < row.length; i++) {
+            // pari = controls; dispari = psoriatic.
             double geneValue = Double.parseDouble(row[i]);
-            patients.get(i-2).getGeneToExpression().put(geneName, geneValue);
+            if (i % 2 == 0) {
+                gene.getControls()[i/2-1] = Double.parseDouble(row[i]);
+            } else {
+                gene.getPsoriatics()[i/2-1] = Double.parseDouble(row[i]);
+            }
             sum += geneValue;
         }
 
         // If the row contains just 0, doesn't matter.
-        if (sum == 0) {
-            removeFromPatients(geneName);
-        }
-    }
-
-    private void removeFromPatients(String geneName) {
-        for (Patient patient : patients) {
-            patient.getGeneToExpression().remove(geneName);
-        }
-    }
-
-
-    /**
-     * Create the list of patients to be filled by parse().
-     */
-    private void prefillPatients() {
-        patients = new ArrayList<Patient>();
-
-        for (int i = 1; i<15; i++) {
-            Patient control = new Patient();
-            control.setName("control"+i);
-            control.setGeneToExpression(new HashMap<String, Double>());
-            patients.add(control);
-            Patient psoriatic = new Patient();
-            psoriatic.setName("psoriatic"+i);
-            psoriatic.setGeneToExpression(new HashMap<String, Double>());
-            patients.add(psoriatic);
+        if (sum > 0) {
+            genes.add(gene);
+            geneIndex++;
         }
     }
 
@@ -110,11 +101,11 @@ public class DataParser {
         this.filePath = filePath;
     }
 
-    public List<Patient> getPatients() {
-        return patients;
+    public Set<Gene> getGenes() {
+        return genes;
     }
 
-    public void setPatients(List<Patient> patients) {
-        this.patients = patients;
+    public void setGenes(Set<Gene> genes) {
+        this.genes = genes;
     }
 }
