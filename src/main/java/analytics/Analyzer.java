@@ -15,7 +15,7 @@ public class Analyzer {
 
     private double[][] pValuesMatrix;
 
-    private boolean[][] adjacencyMatrix;
+    private double[][] adjacencyMatrix;
 
     /**
      * Calculates the Correlation Matrix.
@@ -26,7 +26,7 @@ public class Analyzer {
     public void buildMatrices(Set<Gene> genes) {
 //        correlationMatrix = new double[genes.size()][genes.size()];
 //        pValuesMatrix = new double[genes.size()][genes.size()];
-        adjacencyMatrix = new boolean[genes.size()][genes.size()];
+        adjacencyMatrix = new double[genes.size()][genes.size()];
         double correlation;
         double pValue;
         int connessi = 0;
@@ -49,10 +49,10 @@ public class Analyzer {
                 pValue = pearson.getCorrelationPValues().getEntry(0, 1);
 
                 if (correlation > 0.7 && pValue < 0.05) {
-                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = true;
+                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = correlation;
                     connessi++;
                 } else {
-                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = false;
+                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = 0;
                 }
             }
 
@@ -89,20 +89,20 @@ public class Analyzer {
         this.pValuesMatrix = pValuesMatrix;
     }
 
-    public boolean[][] getAdjacencyMatrix() {
+    public double[][] getAdjacencyMatrix() {
         return adjacencyMatrix;
     }
 
-    public void setAdjacencyMatrix(boolean[][] adjacencyMatrix) {
+    public void setAdjacencyMatrix(double[][] adjacencyMatrix) {
         this.adjacencyMatrix = adjacencyMatrix;
     }
 
     @Override
     public String toString() {
         return "Analyzer{" +
-                "correlationMatrix=" + Arrays.toString(correlationMatrix) +
-                ", pValuesMatrix=" + Arrays.toString(pValuesMatrix) +
-//                ", adjacencyMatrix=" + Arrays.toString(adjacencyMatrix) +
+//                "correlationMatrix=" + Arrays.toString(correlationMatrix) +
+//                ", pValuesMatrix=" + Arrays.toString(pValuesMatrix) +
+                ", adjacencyMatrix=" + Arrays.toString(adjacencyMatrix) +
                 '}';
     }
 }
