@@ -13,11 +13,12 @@ public class EntryPoint {
         long timeBefore = System.currentTimeMillis();
 
         DataParser dataParser = new DataParser();
-        dataParser.setFilePath("/home/marika/Scaricati/GeneNetwork/GeneNetwork.csv");
+        dataParser.setFilePath("/home/gabs/Workspace/GeneNetwork/src/main/resource/GeneNetwork_copy.csv");
         dataParser.parse();
         Analyzer analyzer = new Analyzer();
         analyzer.buildMatrices(dataParser.getGenes());
-        System.out.println(analyzer);
+        analyzer.print();
+        analyzer.close();
         System.out.println("Exec time = "+ (System.currentTimeMillis() - timeBefore));
     }
 }

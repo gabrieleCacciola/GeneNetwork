@@ -2,20 +2,30 @@ package analytics;
 
 import dao.Gene;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import relationship.GeneLabel;
+import relationship.GenesRelationship;
 
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Set;
 
 /**
  * Given the Set<Gene>, calculates the Correlation and P-Values matrices.
  */
 public class Analyzer {
+    /**
+     * Neo4j graph.
+     */
+    private GraphDatabaseService graphDB;
 
-    private double[][] correlationMatrix;
-
-    private double[][] pValuesMatrix;
-
-    private double[][] adjacencyMatrix;
+    public Analyzer(){
+        graphDB = new GraphDatabaseFactory().newEmbeddedDatabase("data");
+    }
 
     /**
      * Calculates the Correlation Matrix.
@@ -24,9 +34,6 @@ public class Analyzer {
      * @return The correlation matrix.
      */
     public void buildMatrices(Set<Gene> genes) {
-//        correlationMatrix = new double[genes.size()][genes.size()];
-//        pValuesMatrix = new double[genes.size()][genes.size()];
-        adjacencyMatrix = new double[genes.size()][genes.size()];
         double correlation;
         double pValue;
         int connessi = 0;
@@ -43,16 +50,12 @@ public class Analyzer {
             for (Gene g2 : genes) {
                 input = createInputMatrix(g1.getControls(), g2.getPsoriatics());
                 pearson = new PearsonsCorrelation(input);
-//                correlationMatrix[g1.getIndex()][g2.getIndex()] = pearson.getCorrelationMatrix().getEntry(0, 1);
-//                pValuesMatrix[g1.getIndex()][g2.getIndex()] = pearson.getCorrelationPValues().getEntry(0, 1);
-                correlation = Math.abs(pearson.getCorrelationMatrix().getEntry(0, 1));
+                correlation = pearson.getCorrelationMatrix().getEntry(0, 1);
                 pValue = pearson.getCorrelationPValues().getEntry(0, 1);
 
-                if (correlation > 0.7 && pValue < 0.05) {
-                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = correlation;
+                if (Math.abs(correlation) > 0.7 && pValue < 0.05) {
+                    createNodes (g1, g2, correlation);
                     connessi++;
-                } else {
-                    adjacencyMatrix[g1.getIndex()][g2.getIndex()] = 0;
                 }
             }
 
@@ -60,6 +63,28 @@ public class Analyzer {
         }
 
         System.out.println("Connessi = "+connessi);
+    }
+
+    private void createNodes(Gene g1, Gene g2, double correlation) {
+        Transaction transaction = graphDB.beginTx();
+        
+        Node node1 = graphDB.createNode();
+        node1.setProperty("name", g1.getName());
+
+        Node node2 = graphDB.createNode();
+        node2.setProperty("name", g2.getName());
+
+        Relationship edge;
+        if (correlation > 0) {
+            edge = node1.createRelationshipTo(node2, GenesRelationship.ACTIVATION);
+        } else {
+            edge = node1.createRelationshipTo(node2, GenesRelationship.INHIBITION);
+        }
+
+        edge.setProperty("weight", correlation);
+
+        transaction.success();
+        transaction.terminate();
     }
 
     private double[][] createInputMatrix(double[] controls, double[] psoriatics) {
@@ -73,36 +98,31 @@ public class Analyzer {
         return input;
     }
 
-    public double[][] getCorrelationMatrix() {
-        return correlationMatrix;
+    public GraphDatabaseService getGraphDB() {
+        return graphDB;
     }
 
-    public void setCorrelationMatrix(double[][] correlationMatrix) {
-        this.correlationMatrix = correlationMatrix;
+    public void setGraphDB(GraphDatabaseService graphDB) {
+        this.graphDB = graphDB;
     }
 
-    public double[][] getpValuesMatrix() {
-        return pValuesMatrix;
+    public void print() {
+        Transaction transaction = graphDB.beginTx();
+        ResourceIterator<Node> nodes = graphDB.findNodes(GeneLabel.GENE);
+
+        while(nodes.hasNext()) {
+            Node gene = nodes.next();
+            Iterator<Relationship> relationships = gene.getRelationships().iterator();
+            while (relationships.hasNext()){
+                Relationship edge = relationships.next();
+                System.out.println(gene.getProperty("name") + " --" + edge.getProperty("weight") + "--" + edge.getEndNode());
+            }
+        }
+
+        transaction.success();
     }
 
-    public void setpValuesMatrix(double[][] pValuesMatrix) {
-        this.pValuesMatrix = pValuesMatrix;
-    }
-
-    public double[][] getAdjacencyMatrix() {
-        return adjacencyMatrix;
-    }
-
-    public void setAdjacencyMatrix(double[][] adjacencyMatrix) {
-        this.adjacencyMatrix = adjacencyMatrix;
-    }
-
-    @Override
-    public String toString() {
-        return "Analyzer{" +
-//                "correlationMatrix=" + Arrays.toString(correlationMatrix) +
-//                ", pValuesMatrix=" + Arrays.toString(pValuesMatrix) +
-                ", adjacencyMatrix=" + Arrays.toString(adjacencyMatrix) +
-                '}';
+    public void close() {
+        graphDB.shutdown();
     }
 }
