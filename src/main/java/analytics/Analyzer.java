@@ -2,16 +2,11 @@ package analytics;
 
 import dao.Gene;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import relationship.GeneLabel;
-import relationship.GenesRelationship;
+import org.neo4j.driver.v1.AuthTokens;
+import org.neo4j.driver.v1.Driver;
+import org.neo4j.driver.v1.GraphDatabase;
+import org.neo4j.driver.v1.Session;
 
-import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -19,12 +14,15 @@ import java.util.Set;
  */
 public class Analyzer {
     /**
-     * Neo4j graph.
+     * Neo4j drivers.
      */
-    private GraphDatabaseService graphDB;
+    private Driver driver;
+
+    private Session session;
 
     public Analyzer(){
-        graphDB = new GraphDatabaseFactory().newEmbeddedDatabase("data");
+        driver = GraphDatabase.driver( "bolt://localhost", AuthTokens.basic( "neo4j", "loop4aiC" ) );
+        session = driver.session();
     }
 
     /**
@@ -36,7 +34,7 @@ public class Analyzer {
     public void buildMatrices(Set<Gene> genes) {
         double correlation;
         double pValue;
-        int connessi = 0;
+        int connected = 0;
 
         double[][] input;
         int processedGenes = 1;
@@ -55,36 +53,26 @@ public class Analyzer {
 
                 if (Math.abs(correlation) > 0.7 && pValue < 0.05) {
                     createNodes (g1, g2, correlation);
-                    connessi++;
+                    connected++;
                 }
             }
 
             processedGenes++;
         }
 
-        System.out.println("Connessi = "+connessi);
+        System.out.println("Connected = "+connected);
     }
 
     private void createNodes(Gene g1, Gene g2, double correlation) {
-        Transaction transaction = graphDB.beginTx();
-        
-        Node node1 = graphDB.createNode();
-        node1.setProperty("name", g1.getName());
-
-        Node node2 = graphDB.createNode();
-        node2.setProperty("name", g2.getName());
-
-        Relationship edge;
-        if (correlation > 0) {
-            edge = node1.createRelationshipTo(node2, GenesRelationship.ACTIVATION);
-        } else {
-            edge = node1.createRelationshipTo(node2, GenesRelationship.INHIBITION);
+//        System.out.println(g1.getName()+" --"+correlation+"--> "+g2.getName());
+        try {
+//            session.run("CREATE (a:Gene {name:'" + g1.getName() + "'})");
+//            session.run("CREATE (b:Gene {name:'" + g2.getName() + "'})");
+            session.run("CREATE(a:Gene{name:'" + g1.getName() + "'}) -[r:CORRELATED]-> (b:Gene{name:'" + g2.getName() + "'})");
+        } catch (Exception e) {
+            session.run("MATCH (n) DETACH DELETE n");
+            System.exit(-1);
         }
-
-        edge.setProperty("weight", correlation);
-
-        transaction.success();
-        transaction.terminate();
     }
 
     private double[][] createInputMatrix(double[] controls, double[] psoriatics) {
@@ -98,31 +86,8 @@ public class Analyzer {
         return input;
     }
 
-    public GraphDatabaseService getGraphDB() {
-        return graphDB;
-    }
-
-    public void setGraphDB(GraphDatabaseService graphDB) {
-        this.graphDB = graphDB;
-    }
-
-    public void print() {
-        Transaction transaction = graphDB.beginTx();
-        ResourceIterator<Node> nodes = graphDB.findNodes(GeneLabel.GENE);
-
-        while(nodes.hasNext()) {
-            Node gene = nodes.next();
-            Iterator<Relationship> relationships = gene.getRelationships().iterator();
-            while (relationships.hasNext()){
-                Relationship edge = relationships.next();
-                System.out.println(gene.getProperty("name") + " --" + edge.getProperty("weight") + "--" + edge.getEndNode());
-            }
-        }
-
-        transaction.success();
-    }
-
     public void close() {
-        graphDB.shutdown();
+        session.close();
+        driver.close();
     }
 }
