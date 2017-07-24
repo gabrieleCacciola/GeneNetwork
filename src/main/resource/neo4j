@@ -1,0 +1,4 @@
+load csv from "file:///genes.csv" as row create (g1:Gene {id: toInteger(row[0]), name: row[1]})
+
+using periodic commit load csv from "file:///edges.csv" as row match (g1:Gene {id: toInteger(row[0])}),
+(g2:Gene {id: toInteger(row[1])}) create (g1) -[:RELATED{correlation: toFloat(row[2]), pValue: toFloat(row[3])}]-> (g2);
